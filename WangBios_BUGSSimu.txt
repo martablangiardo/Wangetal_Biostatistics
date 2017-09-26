@@ -1,0 +1,263 @@
+#BUGS Code for the results of the simulation study, Table 1 of Wang et al, Biostatistics 
+###################################################################################################################
+# Scenario 1 (reference one)
+###################################################################################################################
+model {
+	####Likelihood
+	for (i in 1:area_SI)
+		{
+		area_y[i] ~ dpois(mu[i])
+		log(mu[i]) <- log(area_E) + beta[1]+ beta[2]*area_x[i]+beta[3]*area_c1[i] +beta[4]*area_c2[i] 
+			 + beta[5]*area_m1[i] + beta[6]*area_m2[i] + beta[7]*area_m3[i] + beta[8]*area_m4[i] 
+		}
+	####End of Likelihood
+
+	####Priors 
+	for (i in 1:8)
+		{
+		beta[i] ~ dnorm(0,1.0E-3)
+		}
+	#####End of Prior
+}
+###################################################################################################################
+# Naive case (ignoring M)
+###################################################################################################################
+
+model {
+	####Likelihood
+	for (i in 1:area_SI)
+		{
+		area_y[i] ~ dpois( mu[i] )
+		log(mu[i]) <- log(area_E) + beta[1]+ beta[2]*area_x[i]+beta[3]*area_c1[i] +beta[4]*area_c2[i] 
+		}
+	####End of Likelihood
+
+	####Priors 
+	for (i in 1:4)
+		{
+		beta[i] ~ dnorm(0,1.0E-3)
+		}
+	#####End of Prior
+}
+###################################################################################################################
+# Scenario 2 (M available only in some areas) 
+###################################################################################################################
+#### Case 2.1 and 2.2 - Step 1 EPS calculation for areas with M available 
+model {
+	####Likelihood
+	for (i in 1:area_S)
+		{
+		area_x[i]~dbern(mu.eps[i])
+		logit(mu.eps[i])<-theta[1]+theta[2]*area_c1[i]+theta[3]*area_c2[i]+theta[4]*area_m1[i]+theta[5]*area_m2[i]+theta[6]*area_m3[i]+theta[7]*area_m4[i]
+		 eps[i]<-theta[4]*area_m1[i]+theta[5]*area_m2[i]+theta[6]*area_m3[i]+theta[7]*area_m4[i]
+		}
+####End of Likelihood	
+### Prior for theta
+	 for (i in 1:7)
+		{
+		theta[i] ~ dnorm(0,1.0E-3)
+		}
+### End of prior
+}
+#### Case 2.1 - Step 2 EPS adjustment in the areas with M available
+model {
+	####Likelihood
+	for (i in 1:area_S)
+		{
+		area_y[i] ~ dpois( mu[i] )
+		log(mu[i]) <- log(area_E) + beta[2]*area_x[i] +beta[3]*area_c1[i] +beta[4]*area_c2[i] +eps_mu[i]
+		 eps_mu[i]<-beta[1]+U[cat[i]]
+		}
+
+ 		U[1:cat_tot] ~ car.normal(adj[],weights[],num[],prec.U)
+		beta[1]~dflat()
+		prec.U~dgamma(0.5,0.0005)
+		sigma2.U<-1/prec.U
+		sigma2.U.marginal<- sd(U[])*sd(U[]) ### Marginal variance
+	####End of Likelihood
+
+	####Priors 
+	for (i in 2:4)
+		{
+		beta[i] ~ dnorm(0,1.0E-3)
+		}
+	#####End of Prior
+}
+#### Case 2.2 - Step 2 EPS adjustment in all areas 
+model {
+	####Likelihood
+	for (i in 1:area_SI)
+		{
+		area_y[i] ~ dpois( mu[i] )
+		log(mu[i]) <- log(area_E) + beta[2]*area_x[i]+beta[3]*area_c1[i] +beta[4]*area_c2[i]  +ps_mu[i]   #
+		ps_mu[i]<-beta[1]+U[cat[i]]
+		}
+
+ 		U[1:cat_tot] ~ car.normal(adj[],weights[],num[],prec.U)
+		 beta[1]~dflat()
+		 prec.U~dgamma(0.5,0.0005)
+		sigma2.U<-1/prec.U
+	
+		sigma2.U.marginal<- sd(U[])*sd(U[]) ### Marginal variance
+	####End of Likelihood
+
+	####Priors 
+	for (i in 2:5)
+		{
+		beta[i] ~ dnorm(0,1.0E-3)
+		}
+	#####End of Prior
+}
+
+###################################################################################################################
+# Scenario 3 (m available only in some areas rather than M) 
+###################################################################################################################
+#### Cases 3.1.1-3.1.4 and Cases 3.2.1-3.2.4  - Step 1 EPS calculation in the areas with m available 
+model {
+	####Likelihood
+	for (i in 1:area_S)
+		{
+		indi_m1[i]~dbin(area_M1[i],randcnt[i] )	
+		indi_m2[i]~dbin(area_M2[i],randcnt[i] )	
+		indi_m3[i]~dbin(area_M3[i],randcnt[i] )	
+		indi_m4[i]~dbin(area_M4[i],randcnt[i] )	
+		}
+	### End of Likelihood
+
+	#### Priors
+	for (i in 1:area_S)
+		{
+		area_m[i,1:4]~dmnorm(mu_m.area[1:4], prec.mvsigma.area[1:4,1:4])
+		logit(area_M1[i])<-area_m[i,1]
+		logit(area_M2[i])<-area_m[i,2]
+		logit(area_M3[i])<-area_m[i,3]
+		logit(area_M4[i])<-area_m[i,4]
+
+				
+		}
+		mu_m.area[1]<-mu_area1
+		mu_m.area[2]<-mu_area2
+		mu_m.area[3]<-mu_area3
+		mu_m.area[4]<-mu_area4
+	#### End of Prior
+
+	#### HyperPrior
+		mu_area1~dnorm(0,1.0E-3)
+		mu_area2~dnorm(0,1.0E-3)
+		mu_area3~dnorm(0,1.0E-3)
+		mu_area4~dnorm(0,1.0E-3)
+
+		prec.mvsigma.area[1:4,1:4]~ dwish(omega.area[,],df.area)
+		mvsigma.area[1:4,1:4]<-inverse(prec.mvsigma.area[,])
+	#### End of HyperPrior
+}
+model {
+	####Likelihood
+	for (i in 1:area_S)
+		{
+		area_x[i]~dbern(mu.eps[i])
+		logit(mu.eps[i])<-theta[1]+theta[2]*area_c1[i]+theta[3]*area_c2[i]+theta[4]*area_M1[i]+theta[5]*area_M2[i]+theta[6]*area_M3[i]+theta[7]*area_M4[i]
+		 eps[i]<-theta[4]*area_M1[i]+theta[5]*area_M2[i]+theta[6]*area_M3[i]+theta[7]*area_M4[i]
+		}
+####End of Likelihood	
+### Prior for theta
+	 for (i in 1:7)
+		{
+		theta[i] ~ dnorm(0,1.0E-3)
+		}
+### End of prior
+}
+
+#### Cases 3.1.1-3.1.4  -  Step 2 EPS adjustment in the areas with m available
+model {
+	####Likelihood
+	for (i in 1:area_S)
+		{
+		area_y[i] ~ dpois( mu[i] )
+		log(mu[i]) <- log(area_E) + beta[2]*area_x[i] +beta[3]*area_c1[i] +beta[4]*area_c2[i] +eps_mu[i]
+		 eps_mu[i]<-beta[1]+U[cat[i]]
+		}
+
+ 		U[1:cat_tot] ~ car.normal(adj[],weights[],num[],prec.U)
+		beta[1]~dflat()
+		prec.U~dgamma(0.5,0.0005)
+		sigma2.U<-1/prec.U
+		sigma2.U.marginal<- sd(U[])*sd(U[]) ### Marginal variance
+	####End of Likelihood
+
+	####Priors 
+	for (i in 2:4)
+		{
+		beta[i] ~ dnorm(0,1.0E-3)
+		}
+	#####End of Prior
+}
+
+#### Cases 3.2.1-3.2.4  - Step 2 EPS imputation 
+model {
+	####Likelihood
+	for (i in 1:area_SI)
+		{
+		eps[i] ~dnorm(eps_mu[i],prec.eps)
+		eps_mu[i]<- eta[1]+ eta[2]*area_x[i]+U.c1[cat.c1[i]]+U.c2[cat.c2[i]]
+		}
+		U.c1[1:cat_tot.c1] ~ car.normal(adj.c1[],weights.c1[],num.c1[],prec.U.c1)
+		U.c2[1:cat_tot.c2] ~ car.normal(adj.c2[],weights.c2[],num.c2[],prec.U.c2)
+	####End of Likelihood
+
+	####Priors 
+	### Priors for imputation model
+		prec.eps~dgamma(0.001,0.001)
+		sigma2.eps<-1/prec.eps
+
+		eta[1]~dflat()
+		eta[2] ~ dnorm(0,1.0E-3)   
+
+		prec.U.c1~dgamma(0.5,0.0005)
+		sigma2.U.c1<-1/prec.U.c1
+		sigma2.U.c1.marginal<- sd(U.c1[])*sd(U.c1[]) ### Marginal variance
+
+		prec.U.c2~dgamma(0.5,0.0005)
+		sigma2.U.c2<-1/prec.U.c2
+		sigma2.U.c2.marginal<- sd(U.c2[])*sd(U.c2[]) ### Marginal variance
+	### 
+	#####End of Prior
+}
+#### Cases 3.2.1-3.2.4  - Step 3 EPS adjustment
+model {
+	####Likelihood
+	for (i in 1:area_SI)
+		{
+		area_y[i] ~ dpois( mu[i] )
+		log(mu[i]) <- log(area_E) + beta[2]*area_x[i]+beta[3]*area_c1[i] +beta[4]*area_c2[i]  +eps_mu[i]
+		eps_mu[i]<-beta[1]+U[cat[i]]
+		}
+
+ 		U[1:cat_tot] ~ car.normal(adj[],weights[],num[],prec.U)
+		beta[1]~dflat()
+		 prec.U~dgamma(0.5,0.0005)
+		sigma2.U<-1/prec.U
+	
+		sigma2.U.marginal<- sd(U[])*sd(U[]) ### Marginal variance
+
+	for (i in 1:area_I) # 
+		{
+		cat[mss_ps_idx[i]]~dcat(p_fm[i,])
+		}
+	####End of Likelihood
+
+	####Priors 
+	for (i in 2:5)
+		{
+		beta[i] ~ dnorm(0,1.0E-3)
+		}
+	#####End of Prior
+}
+
+
+
+
+
+
+
+

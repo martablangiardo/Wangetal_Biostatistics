@@ -1,0 +1,199 @@
+BUGS code for the illustrative example on air pollution and CHD hospital admissions, section 4, Wang et al, Biostatistics
+
+### Part 1: Estimate M (area level) Equation 2.1 of 
+model {
+	for (id in 1:area_S) 
+		{
+			m1[id]~dbin(area_M1[id],n[id])
+			m2[id]~dbin(area_M2[id],n[id])
+			m3[id]~dbin(area_M3[id],n[id])
+
+			m4[id]~dbin(area_M4[id],n[id])
+			m5[id]~dbin(area_M5[id],n[id])
+			m6[id]~dbin(area_M6[id],n[id])
+
+			m7[id]~dbin(area_M7[id],n[id])
+			m8[id]~dbin(area_M8[id],n[id])
+			m9[id]~dbin(area_M9[id],n[id])
+
+			m10[id]~dbin(area_M10[id],n[id])
+
+			m11[id]~dbin(area_M11[id],n[id])
+			m12[id]~dbin(area_M12[id],n[id])
+			m13[id]~dbin(area_M13[id],n[id])
+		}	
+
+	### Start of Link area_M to MVBYM
+	for (id in 1:area_S)
+		{
+		for (d in 1:Q)
+			{
+			logit(area_M[id,d])<- muV[id,d] 
+			muV[id, d]<-alpha[d]+psi1[d,dist[id]] +  psi2[dist[id] ,d] + V.ward[id,d]
+			V.ward[id,d] ~ dnorm(0, prec.V.ward[d])
+			}
+		area_M1[id]<-area_M[id,1]
+		area_M2[id]<-area_M[id,2]
+		area_M3[id]<-area_M[id,3]
+
+		area_M4[id]<-area_M[id,4]
+		area_M5[id]<-area_M[id,5]
+		area_M6[id]<-area_M[id,6]
+
+		area_M7[id]<-area_M[id,7]
+		area_M8[id]<-area_M[id,8]
+		area_M9[id]<-area_M[id,9]
+
+		area_M10[id]<-area_M[id,10]
+
+		area_M11[id]<-area_M[id,11]
+		area_M12[id]<-area_M[id,12]
+		area_M13[id]<-area_M[id,13]
+		}
+	### End of Link M to MVBYM
+
+	### Start of set hyper prior for MVBYM
+	#The prior for V.i
+	for (d in 1:Q)
+		{
+			prec.V.ward[d]~dgamma(0.01,0.01) 	
+			var.V.ward[d]<-1/prec.V.ward[d]	
+		}
+
+	#The prior for V.dist
+	for (id in 1:dist_N)
+		{
+		   psi2[id,1:Q] ~ dmnorm( zero[1:Q] , omegapsi2[,])  
+		}
+	omegapsi2[1:Q, 1:Q] ~ dwish(Rpsi2[ , ], dfpsi2) 
+	sigmapsi2[1:Q, 1:Q]<-inverse(omegapsi2[,])
+
+  	# iCAR prior on spatial random effects U.dist
+	psi1[1:Q,1:dist_N] ~ mv.car(adj[], weights[], num[], omegaphi1[ , ])
+  	for(k in 1:sumNumNeigh) {weights[k] <- 1 }
+
+	# Improper intecept
+	for (d in 1:Q)
+		{
+		alpha[d]  ~ dflat()
+		}
+
+	omegapsi1[1:Q, 1:Q] ~ dwish(Rpsi1[ , ], dfpsi1) # Precision matrix of MVCAR
+	sigmapsi1[1:Q, 1:Q] <- inverse(omegapsi1[ , ]) # Covariance matrix of MVCAR
+	sigma[1] <- sqrt(sigmapsi1[1, 1]) # conditional SD of S[1,] 
+	sigma[2] <- sqrt(sigmapsi1[2, 2]) # conditional SD of S[2,] 
+	corr <- sigmapsi1[1, 2] / (sigma[1] * sigma[2])                      
+	### End of set hyper prior for MVBYM
+}
+
+### Part 2: Calculate EPS Equation 2.2 of Wang et al, Biostatistics 2018
+model {
+	###  EPS calculation based on the point estimated area_pi
+	for (id in 1:area_S) 
+		{
+		area_x[id] ~ dbern(x_p[id])
+		logit(x_p[id])<-theta[1]+ theta[2]*area_c1[id] + theta[3]*area_c2[id] +
+					theta[5]*(area_M1[id]) +theta[6]*(area_M2[id]) +theta[7]*(area_M3[id])+
+					theta[8]*(area_M4[id]) +theta[9]*(area_M5[id]) +theta[10]*(area_M6[id])+
+ 					theta[11]*(area_M7[id]) +theta[12]*(area_M8[id]) +theta[13]*(area_M9[id]) +theta[14]*(area_M10[id])+
+					theta[15]*(area_M11[id])+theta[16]*(area_M12[id])+theta[17]*(area_M13[id])
+
+		 eps[id] <-	theta[5]*area_M1[id] +theta[6]*area_M2[id] +theta[7]*area_M3[id]+
+				theta[8]*area_M4[id] +theta[9]*area_M5[id] +theta[10]*area_M6[id]+ 
+ 				theta[11]*area_M7[id] +theta[12]*area_M8[id] +theta[13]*area_M9[id] +theta[14]*area_M10[id]+
+			     	theta[15]*(area_M11[id])+theta[16]*(area_M12[id])+theta[17]*(area_M13[id])
+			}	
+
+	### Priors 
+	for (i in 1:(Q+4))
+		{
+		theta[i] ~ dnorm(0,1.0E-5)  
+		}
+	###
+}
+
+
+
+#Model 2: EPS imputation. Equation 2.3 of Wang et al, Biostatistics 2018
+
+model {
+	for (i in 1:area_SI)
+		{
+		eps[i] ~dnorm(eps_mu[i],prec.eps)
+		eps_mu[i]<-  eta[1]  + gamma*area_x[i]   +phi[dist[i]]   
+		 		 +phi.c1[cat.c1[i]]   +phi.c2[cat.c2[i]] 
+		}
+		 phi.c1[1:cat_tot.c1] ~ car.normal(adj.c1[],weights.c1[],num.c1[],prec.phi.c1)
+		 phi.c2[1:cat_tot.c2] ~ car.normal(adj.c2[],weights.c2[],num.c2[],prec.phi.c2)
+
+		phi[1:dist_N] ~ car.normal(adj[], weights[], num[], tauU)
+  		for(k in 1:sumNumNeigh) {weights[k] <- 1 }
+
+		tauphi~dgamma(0.5,0.0005)
+		sigmaphi<-1/tauphi
+		sigma2.phi.marginal<- sd(phi[])*sd(phi[]) ### Marginal variance
+		frac.sigma2.phi.marginal<-sigma2.phi.marginal/( sigma2.phi.marginal+sigma2.phi.c1.marginal+sigma2.phi.c2.marginal )
+
+	### Priors for imputation model
+		 prec.eps~dgamma(0.001,0.001)
+		 sigma2.eps<-1/prec.eps
+		 gamma~dnorm(0,1.0E-3)
+
+		 eta[1]~ dflat()  
+
+		 prec.phi.c1~dgamma(0.5,0.0005)
+		 sigma2.phi.c1<-1/prec.phi.c1
+		 sigma2.phi.c1.marginal<- sd(phi.c1[])*sd(phi.c1[]) ### Marginal variance
+
+		 prec.phi.c2~dgamma(0.5,0.0005)
+		 sigma2.phi.c2<-1/prec.phi.c2
+		 sigma2.phi.c2.marginal<- sd(phi.c2[])*sd(phi.c2[]) ### Marginal variance
+
+}
+
+#Model 3: EPS adjustment. Equation 2.4 in Wang et al, Biostatistics 2018
+
+model {
+	for (id in 1:area_SI)
+		{
+		area_O[id] ~ dpois (mu[id]) 
+		log(mu[id]) <-  log(area_E[id])+beta[2]*area_x[id]+beta[3]*area_c1[id] +beta[4]*area_c2[id]+ xi1[id]+xi2[id]+eps_mu[id] 
+		eps_mu[id]<-alpha+U.rw[cat[id]] 
+		xi1[id] ~ dnorm(0, isigma2)
+		}
+
+	### Spatial correlation U
+	xi2[1:area_SI] ~ car.normal(adj[],weights[],num[],isigmaxi) 
+	for(k in 1:sumNumNeigh) {weights[k] <- 1 }
+	isigmaxi ~dgamma(0.5,0.0005)
+	sigmaxi<-1/isigmaU	
+
+	### RW2
+	U.rw[1:cat_tot] ~ car.normal(adj.rw[],weights.rw[],num.rw[],isigmaU.rw)
+	alpha~dflat()
+	isigmaU.rw~dgamma(0.5,0.0005)
+	sigmaU.rw<-1/isigmaU.rw
+
+	### Start of using categorical EPS
+	for (i in 1:area_I) 
+		{
+		cat[mss_eps_idx[i]]~dcat(p_fm[i,])
+		}
+	###
+	
+	### Start of Prior 
+	for (i in 1:4)
+		{
+		beta[i] ~ dnorm(0,1.0E-5)
+		}
+	RR[1]<-1   ### To avoid crash of exp(alpha)
+	for (i in 2:4)
+		{
+		RR[i]<-exp(beta[i])
+		}
+
+	isigma2~dgamma(0.001,0.001)
+	sigma2<-1/isigma2
+	#### End of Prior
+}
+
